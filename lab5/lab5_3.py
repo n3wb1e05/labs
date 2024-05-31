@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.signal as spi
 from bokeh.layouts import column
 from bokeh.models import Slider, Button,Range1d,CheckboxButtonGroup,ColumnDataSource
 from bokeh.plotting import figure,curdoc
