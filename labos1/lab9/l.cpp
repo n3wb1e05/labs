@@ -25,7 +25,7 @@ char* get_random_task(char* shmem) {
     std::random_device rd;
     std::mt19937 gen(rd());
     int prognumber = gen() % 2;
-    return (shmem + prognumber * 34);
+    return (shmem + prognumber * 46);
 }
 
 /*  
@@ -58,7 +58,7 @@ void set_value(int id, int num_s, int n){
 
 struct message_struct{
     long mtype;   
-    char mtext[100]; 
+    char mtext[200]; 
 };
 
 int main()
@@ -66,7 +66,7 @@ int main()
     key_t share_seg_mem = ftok(pathname,1),
     key_sem = ftok(pathname,2),
     key_mesqueue = ftok(pathname,3);
-    char *ex_str = "/home/kyrylshabanv/code/lab9/lab7";
+    char *ex_str = "/home/kyrylshabanv/code/labs/labos1/lab9/lab7";
     int len = sizeof(ex_str);
 
     int id_shm,id_m,id_s;
@@ -86,7 +86,7 @@ int main()
         cout<<"I'm process "<<getpid()<<".My father:"<<getppid()<<endl;
         sleep(1);
         char *alloc_seg;
-        while((id_shm = shmget(share_seg_mem,len,0664))==-1){
+        while((id_shm = shmget(share_seg_mem,len*2,0664))==-1){
             perror("open shm child:");
             sleep(2);
         }
@@ -102,8 +102,9 @@ int main()
             sleep(2);
         }
         string mess;
-        time_t time_n;
+        time_t time_n,time_end;
         tm* ltm;
+        tm * ltm_end;
         while((id_m = msgget(key_mesqueue,0664))==-1){
             perror("msgget");
             sleep(2);
@@ -112,25 +113,30 @@ int main()
             
             //choose random value
             semop(id_s,&lock_sem,1);
-            
+            sleep(1);
+            time_n = time(0);
+            ltm = localtime(&time_n);
+            char file[len];
+            strcpy(file,get_random_task(alloc_seg));
+            mess = "Time to start:"+to_string(ltm->tm_hour)+":"+to_string(ltm->tm_min)+":"+to_string(ltm->tm_sec)+";PID:" +to_string(getpid())+"; execute:"+ file;
             pid_t for_child = fork();
             if(for_child==0){
-                time_n = time(0);
-                ltm = localtime(&time_n);
-                char file[len];
-                strcpy(file,get_random_task(alloc_seg));
-                mess = "Time to start:"+to_string(ltm->tm_hour)+":"+to_string(ltm->tm_min)+":"+to_string(ltm->tm_sec)+".PPID:" +to_string(getppid())+"; execute:"+ file;
-                snd_m.mtype = 1;
-                strcpy(snd_m.mtext, mess.c_str()); 
-                sleep(1);
-                msgsnd(id_m,&snd_m,sizeof(snd_m.mtext),0);
+                
                 if(execl(file,file,NULL,NULL)==-1){
                     perror("fork child");
                 }
             }
             else{
-                if(wait(NULL))
+                if(wait(NULL)){
+                    time_end = time(0);
+                    ltm_end = localtime(&time_end);
+                    mess = mess+";Time to end:"+to_string(ltm_end->tm_hour)+":"+to_string(ltm_end->tm_min)+":"+to_string(ltm_end->tm_sec);
+                    snd_m.mtype = 1;
+                    strcpy(snd_m.mtext, mess.c_str()); 
+                    msgsnd(id_m,&snd_m,sizeof(snd_m.mtext),0);
+                    mess = "";
                     semop(id_s,&unlock_sem,1);
+                }
             }
             
         }
@@ -141,8 +147,8 @@ int main()
         char *alloc_shm;
 
         char *filenames[] = {
-            "/home/kyrylshabanv/code/lab9/lab7",
-            "/home/kyrylshabanv/code/lab9/phyl"
+            "/home/kyrylshabanv/code/labs/labos1/lab9/lab7",
+            "/home/kyrylshabanv/code/labs/labos1/lab9/phyl"
         };
 
         if((id_shm=shmget(share_seg_mem,len*2,(IPC_CREAT|0664)|IPC_EXCL))==-1){
